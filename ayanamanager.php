@@ -23,6 +23,7 @@ if (!$current_dir || strpos($current_dir, FM_ROOT_PATH) !== 0) {
 
 // Server Information Functions
 function get_server_info() {
+    global $current_dir;
     $info = array();
     
     // Basic PHP Info
@@ -31,8 +32,8 @@ function get_server_info() {
         'sapi' => php_sapi_name(),
         'os' => PHP_OS,
         'architecture' => php_uname('m'),
-        'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
-        'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'Unknown',
+        'server_software' => isset($_SERVER['SERVER_SOFTWARE']) ? $_SERVER['SERVER_SOFTWARE'] : 'Unknown',
+        'document_root' => isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] : 'Unknown',
         'max_execution_time' => ini_get('max_execution_time'),
         'memory_limit' => ini_get('memory_limit'),
         'post_max_size' => ini_get('post_max_size'),
@@ -60,10 +61,11 @@ function get_server_info() {
     );
     
     // Disk Space
+    $disk_path = $current_dir ? $current_dir : '.';
     $info['disk'] = array(
-        'total_space' => disk_total_space($current_dir ?? '.'),
-        'free_space' => disk_free_space($current_dir ?? '.'),
-        'used_space' => disk_total_space($current_dir ?? '.') - disk_free_space($current_dir ?? '.')
+        'total_space' => disk_total_space($disk_path),
+        'free_space' => disk_free_space($disk_path),
+        'used_space' => disk_total_space($disk_path) - disk_free_space($disk_path)
     );
     
     // Memory Usage
@@ -74,23 +76,39 @@ function get_server_info() {
     );
     
     // File System Capabilities
+    $temp_dir = sys_get_temp_dir();
+    $upload_tmp_dir = ini_get('upload_tmp_dir');
+    if (empty($upload_tmp_dir)) {
+        $upload_tmp_dir = $temp_dir;
+    }
+    
+    $open_basedir = ini_get('open_basedir');
+    if (empty($open_basedir)) {
+        $open_basedir = 'Not set';
+    }
+    
     $info['filesystem'] = array(
-        'current_dir_writable' => is_writable($current_dir ?? '.'),
-        'current_dir_readable' => is_readable($current_dir ?? '.'),
-        'temp_dir' => sys_get_temp_dir(),
-        'temp_dir_writable' => is_writable(sys_get_temp_dir()),
-        'upload_tmp_dir' => ini_get('upload_tmp_dir') ?: sys_get_temp_dir(),
-        'open_basedir' => ini_get('open_basedir') ?: 'Not set',
+        'current_dir_writable' => is_writable($current_dir ? $current_dir : '.'),
+        'current_dir_readable' => is_readable($current_dir ? $current_dir : '.'),
+        'temp_dir' => $temp_dir,
+        'temp_dir_writable' => is_writable($temp_dir),
+        'upload_tmp_dir' => $upload_tmp_dir,
+        'open_basedir' => $open_basedir,
         'safe_mode' => (version_compare(PHP_VERSION, '5.4.0') < 0) ? ini_get('safe_mode') : 'Removed in PHP 5.4+'
     );
     
     // Security Settings
+    $error_log = ini_get('error_log');
+    if (empty($error_log)) {
+        $error_log = 'Not set';
+    }
+    
     $info['security'] = array(
         'allow_url_fopen' => ini_get('allow_url_fopen'),
         'allow_url_include' => ini_get('allow_url_include'),
         'display_errors' => ini_get('display_errors'),
         'log_errors' => ini_get('log_errors'),
-        'error_log' => ini_get('error_log') ?: 'Not set',
+        'error_log' => $error_log,
         'expose_php' => ini_get('expose_php'),
         'register_globals' => (version_compare(PHP_VERSION, '5.4.0') < 0) ? ini_get('register_globals') : 'Removed in PHP 5.4+',
         'magic_quotes_gpc' => (version_compare(PHP_VERSION, '5.4.0') < 0) ? ini_get('magic_quotes_gpc') : 'Removed in PHP 5.4+'
@@ -98,13 +116,13 @@ function get_server_info() {
     
     // Server Environment
     $info['environment'] = array(
-        'server_name' => $_SERVER['SERVER_NAME'] ?? 'Unknown',
-        'server_port' => $_SERVER['SERVER_PORT'] ?? 'Unknown',
+        'server_name' => isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'Unknown',
+        'server_port' => isset($_SERVER['SERVER_PORT']) ? $_SERVER['SERVER_PORT'] : 'Unknown',
         'https' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
-        'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'Unknown',
-        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown',
-        'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
-        'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'Unknown'
+        'request_method' => isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'Unknown',
+        'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : 'Unknown',
+        'remote_addr' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : 'Unknown',
+        'script_name' => isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : 'Unknown'
     );
     
     return $info;
@@ -242,7 +260,7 @@ function create_zip_archive($files, $zip_path, $base_path) {
 if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
     header('Content-Type: application/json');
     
-    $action = $_POST['action'] ?? $_GET['action'] ?? '';
+    $action = isset($_POST['action']) ? $_POST['action'] : (isset($_GET['action']) ? $_GET['action'] : '');
     $response = array('success' => false, 'message' => '', 'progress' => 0);
     
     try {
@@ -260,7 +278,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                 break;
                 
             case 'bulk_delete_progress':
-                $selected_files = $_POST['selected_files'] ?? array();
+                $selected_files = isset($_POST['selected_files']) ? $_POST['selected_files'] : array();
                 $total_files = count($selected_files);
                 $deleted_count = 0;
                 $errors = array();
@@ -306,8 +324,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                 break;
                 
             case 'bulk_zip_progress':
-                $selected_files = $_POST['selected_files'] ?? array();
-                $zip_name = $_POST['zip_name'] ?? 'bulk_archive';
+                $selected_files = isset($_POST['selected_files']) ? $_POST['selected_files'] : array();
+                $zip_name = isset($_POST['zip_name']) ? $_POST['zip_name'] : 'bulk_archive';
                 $total_files = count($selected_files);
                 
                 if (empty($selected_files)) {
@@ -361,12 +379,12 @@ $message = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_GET['ajax'])) {
-    $action = $_POST['action'] ?? '';
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
     
     try {
         switch ($action) {
             case 'create_file':
-                $filename = $_POST['filename'] ?? '';
+                $filename = isset($_POST['filename']) ? $_POST['filename'] : '';
                 if ($filename && !file_exists($current_dir . '/' . $filename)) {
                     if (file_put_contents($current_dir . '/' . $filename, '')) {
                         $message = "File '$filename' created successfully!";
@@ -379,7 +397,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_GET['ajax'])) {
                 break;
                 
             case 'create_folder':
-                $foldername = $_POST['foldername'] ?? '';
+                $foldername = isset($_POST['foldername']) ? $_POST['foldername'] : '';
                 if ($foldername && !file_exists($current_dir . '/' . $foldername)) {
                     if (mkdir($current_dir . '/' . $foldername, 0755)) {
                         $message = "Folder '$foldername' created successfully!";
@@ -392,8 +410,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_GET['ajax'])) {
                 break;
                 
             case 'save_file':
-                $filename = $_POST['filename'] ?? '';
-                $content = $_POST['content'] ?? '';
+                $filename = isset($_POST['filename']) ? $_POST['filename'] : '';
+                $content = isset($_POST['content']) ? $_POST['content'] : '';
                 if ($filename && file_exists($current_dir . '/' . $filename)) {
                     if (file_put_contents($current_dir . '/' . $filename, $content) !== false) {
                         $message = "File '$filename' saved successfully!";
@@ -404,8 +422,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_GET['ajax'])) {
                 break;
                 
             case 'rename':
-                $old_name = $_POST['old_name'] ?? '';
-                $new_name = $_POST['new_name'] ?? '';
+                $old_name = isset($_POST['old_name']) ? $_POST['old_name'] : '';
+                $new_name = isset($_POST['new_name']) ? $_POST['new_name'] : '';
                 if ($old_name && $new_name && file_exists($current_dir . '/' . $old_name)) {
                     if (rename($current_dir . '/' . $old_name, $current_dir . '/' . $new_name)) {
                         $message = "Renamed '$old_name' to '$new_name' successfully!";
@@ -416,7 +434,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_GET['ajax'])) {
                 break;
                 
             case 'delete':
-                $filename = $_POST['filename'] ?? '';
+                $filename = isset($_POST['filename']) ? $_POST['filename'] : '';
                 if ($filename && file_exists($current_dir . '/' . $filename)) {
                     if (is_dir($current_dir . '/' . $filename)) {
                         if (rmdir($current_dir . '/' . $filename)) {
@@ -528,7 +546,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_GET['ajax'])) {
                 break;
                 
             case 'zip':
-                $filename = $_POST['filename'] ?? '';
+                $filename = isset($_POST['filename']) ? $_POST['filename'] : '';
                 if (!$filename || !file_exists($current_dir . '/' . $filename)) {
                     $error = "File or folder not found";
                     break;
@@ -555,7 +573,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_GET['ajax'])) {
                 break;
                 
             case 'unzip':
-                $filename = $_POST['filename'] ?? '';
+                $filename = isset($_POST['filename']) ? $_POST['filename'] : '';
                 if ($filename && file_exists($current_dir . '/' . $filename) && pathinfo($filename, PATHINFO_EXTENSION) == 'zip') {
                     if (!is_zip_available()) {
                         $error = "ZipArchive extension is not available on this server";
@@ -1702,9 +1720,6 @@ $server_info = get_server_info();
                                 <td>
                                     <span class="status-indicator <?php echo $server_info['filesystem']['temp_dir_writable'] ? 'status-ok' : 'status-error'; ?>"></span>
                                     <?php echo $server_info['filesystem']['temp_dir_writable'] ? 'Yes' : 'No'; ?>
-                                </td>
-                            </tr>
-                            
                                 </td>
                             </tr>
                             <tr><td>Upload Tmp Dir</td><td><?php echo $server_info['filesystem']['upload_tmp_dir']; ?></td></tr>
