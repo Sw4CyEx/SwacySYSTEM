@@ -2,8 +2,55 @@
 session_start();
 error_reporting(E_ALL & ~E_NOTICE);
 
-// Configuration
-define('FM_ROOT_PATH', $_SERVER['DOCUMENT_ROOT']);
+// Configuration - Root Path Options
+$possible_roots = array();
+
+// Try to detect possible root directories
+$current_script_dir = dirname(__FILE__);
+$path_parts = explode('/', $current_script_dir);
+
+// Build possible root paths
+for ($i = count($path_parts); $i >= 1; $i--) {
+    $test_path = implode('/', array_slice($path_parts, 0, $i));
+    if (!empty($test_path) && is_dir($test_path) && is_readable($test_path)) {
+        $folder_name = basename($test_path);
+        $possible_roots[$test_path] = $folder_name . ' (' . $test_path . ')';
+    }
+}
+
+// Add some common root directories if they exist
+$common_roots = array(
+    '/DATA' => 'DATA Root',
+    '/home' => 'Home Directory', 
+    '/var/www' => 'Web Root',
+    '/public_html' => 'Public HTML',
+    $_SERVER['DOCUMENT_ROOT'] => 'Document Root'
+);
+
+foreach ($common_roots as $path => $label) {
+    if (is_dir($path) && is_readable($path) && !isset($possible_roots[$path])) {
+        $possible_roots[$path] = $label . ' (' . $path . ')';
+    }
+}
+
+// Set root path based on user selection or default
+if (isset($_GET['set_root']) && isset($possible_roots[$_GET['set_root']])) {
+    $_SESSION['fm_root_path'] = $_GET['set_root'];
+}
+
+// Get root path from session or use default
+if (isset($_SESSION['fm_root_path']) && is_dir($_SESSION['fm_root_path'])) {
+    define('FM_ROOT_PATH', $_SESSION['fm_root_path']);
+} else {
+    // Default to parent of current directory or document root
+    $default_root = dirname($current_script_dir);
+    if (!is_readable($default_root)) {
+        $default_root = $_SERVER['DOCUMENT_ROOT'];
+    }
+    define('FM_ROOT_PATH', $default_root);
+    $_SESSION['fm_root_path'] = $default_root;
+}
+
 define('FM_ROOT_URL', 'http://' . $_SERVER['HTTP_HOST']);
 define('FM_SELF_URL', $_SERVER['PHP_SELF']);
 
@@ -918,7 +965,7 @@ $server_info = get_server_info();
             background: #0b7dda;
         }
         
-        input[type="text"], input[type="file"], textarea {
+        input[type="text"], input[type="file"], textarea, select {
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
@@ -1585,6 +1632,177 @@ $server_info = get_server_info();
                 gap: 8px;
             }
         }
+
+.path-navigation {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.permissions {
+    font-family: monospace;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 8px;
+}
+
+.breadcrumb-item {
+    color: white;
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.1);
+    transition: background 0.3s;
+    font-size: 14px;
+}
+
+.breadcrumb-item:hover {
+    background: rgba(255,255,255,0.2);
+    text-decoration: none;
+}
+
+.breadcrumb-separator {
+    color: rgba(255,255,255,0.6);
+    font-weight: bold;
+}
+
+.full-path {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.full-path input {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.full-path input:focus {
+    background: rgba(255,255,255,0.2);
+    outline: none;
+    border-color: rgba(255,255,255,0.5);
+}
+
+.full-path button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.3s;
+}
+
+.full-path button:first-of-type {
+    background: #28a745;
+    color: white;
+}
+
+.full-path button:first-of-type:hover {
+    background: #218838;
+}
+
+.full-path button:last-of-type {
+    background: #dc3545;
+    color: white;
+}
+
+.full-path button:last-of-type:hover {
+    background: #c82333;
+}
+
+.quick-nav {
+    background: rgba(255,255,255,0.1);
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.quick-nav-btn {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.3s;
+}
+
+.quick-nav-btn:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.root-selector {
+    background: rgba(255,255,255,0.1);
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.root-selector select {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.root-selector select option {
+    background: #333;
+    color: white;
+}
+
+.root-selector label {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .breadcrumb {
+        font-size: 12px;
+    }
+    
+    .breadcrumb-item {
+        padding: 3px 6px;
+        font-size: 12px;
+    }
+    
+    .full-path {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .full-path input {
+        margin-bottom: 5px;
+    }
+    
+    .root-selector {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
     </style>
 </head>
 <body>
@@ -1592,8 +1810,48 @@ $server_info = get_server_info();
         <div class="header">
             <h1>🗂️ Ayana MINI</h1>
             <div class="current-dir">
-                (<?php echo get_permissions($current_dir); ?>) <?php echo $current_dir; ?>
+                <div class="path-navigation">
+                    <span class="permissions">(<?php echo get_permissions($current_dir); ?>)</span>
+                    <div class="breadcrumb">
+                        <?php
+                        // Create breadcrumb navigation
+                        $path_parts = explode('/', str_replace(FM_ROOT_PATH, '', $current_dir));
+                        $current_path = FM_ROOT_PATH;
+                        
+                        // Root link
+                        echo '<a href="' . FM_SELF_URL . '?dir=' . urlencode(FM_ROOT_PATH) . '" class="breadcrumb-item">🏠 Root</a>';
+                        
+                        // Path parts
+                        foreach ($path_parts as $part) {
+                            if (!empty($part)) {
+                                $current_path .= '/' . $part;
+                                echo ' <span class="breadcrumb-separator">></span> ';
+                                echo '<a href="' . FM_SELF_URL . '?dir=' . urlencode($current_path) . '" class="breadcrumb-item">' . htmlspecialchars($part) . '</a>';
+                            }
+                        }
+                        ?>
+                    </div>
+                    <div class="full-path" title="Click to edit path directly">
+                        <input type="text" id="pathInput" value="<?php echo htmlspecialchars($current_dir); ?>" readonly onclick="enablePathEdit()" />
+                        <button onclick="navigateToPath()" id="pathGoBtn" style="display: none;">Go</button>
+                        <button onclick="cancelPathEdit()" id="pathCancelBtn" style="display: none;">Cancel</button>
+                    </div>
+                </div>
             </div>
+            
+            <!-- Root Directory Selector -->
+            <div class="root-selector">
+                <label for="rootSelect">📁 Root Directory:</label>
+                <select id="rootSelect" onchange="changeRoot(this.value)">
+                    <?php foreach ($possible_roots as $path => $label): ?>
+                        <option value="<?php echo htmlspecialchars($path); ?>" <?php echo ($path == FM_ROOT_PATH) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($label); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <span style="font-size: 11px; opacity: 0.8;">Current Root: <?php echo htmlspecialchars(basename(FM_ROOT_PATH)); ?></span>
+            </div>
+            
             <div class="system-info">
                 <div class="info-item">
                     <span class="status-indicator <?php echo is_zip_available() ? 'status-ok' : 'status-error'; ?>"></span>
@@ -1821,6 +2079,31 @@ $server_info = get_server_info();
                 <?php if ($current_dir != FM_ROOT_PATH): ?>
                     <a href="<?php echo FM_SELF_URL; ?>?dir=<?php echo urlencode(dirname($current_dir)); ?>" class="btn btn-warning">⬅️ Back</a>
                 <?php endif; ?>
+                <button onclick="navigateToRoot()" class="btn btn-info">🏠 Root</button>
+                <button onclick="location.reload()" class="btn">🔄 Refresh</button>
+            </div>
+            
+            <!-- Quick Navigation -->
+            <div class="quick-nav">
+                <span style="font-size: 12px; opacity: 0.8;">Quick Nav:</span>
+                <?php
+                // Show some common directories if they exist
+                $common_dirs = array(
+                    'public_html' => '🌐 Public HTML',
+                    'www' => '🌐 WWW', 
+                    'htdocs' => '🌐 HTDocs',
+                    'logs' => '📋 Logs',
+                    'tmp' => '📁 Temp',
+                    'backup' => '💾 Backup'
+                );
+                
+                foreach ($common_dirs as $dir => $label) {
+                    $check_path = dirname($current_dir) . '/' . $dir;
+                    if (is_dir($check_path)) {
+                        echo '<button onclick="window.location.href=\'' . FM_SELF_URL . '?dir=' . urlencode($check_path) . '\'" class="quick-nav-btn">' . $label . '</button>';
+                    }
+                }
+                ?>
             </div>
         </div>
 
@@ -2724,6 +3007,80 @@ $server_info = get_server_info();
         document.addEventListener('DOMContentLoaded', function() {
             updateBulkActions();
         });
+
+        // Path navigation functions
+        function enablePathEdit() {
+            const pathInput = document.getElementById('pathInput');
+            const goBtn = document.getElementById('pathGoBtn');
+            const cancelBtn = document.getElementById('pathCancelBtn');
+            
+            pathInput.readOnly = false;
+            pathInput.focus();
+            pathInput.select();
+            goBtn.style.display = 'inline-block';
+            cancelBtn.style.display = 'inline-block';
+        }
+
+        function cancelPathEdit() {
+            const pathInput = document.getElementById('pathInput');
+            const goBtn = document.getElementById('pathGoBtn');
+            const cancelBtn = document.getElementById('pathCancelBtn');
+            
+            pathInput.readOnly = true;
+            pathInput.value = '<?php echo addslashes($current_dir); ?>';
+            goBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+        }
+
+        function navigateToPath() {
+            const pathInput = document.getElementById('pathInput');
+            const newPath = pathInput.value.trim();
+            
+            if (newPath) {
+                // Basic validation
+                if (newPath.includes('..') || newPath.includes('<') || newPath.includes('>')) {
+                    alert('Invalid path. Please enter a valid directory path.');
+                    return;
+                }
+                
+                // Navigate to the new path
+                window.location.href = '<?php echo FM_SELF_URL; ?>?dir=' + encodeURIComponent(newPath);
+            }
+        }
+
+        // Handle Enter key in path input
+        document.addEventListener('DOMContentLoaded', function() {
+            const pathInput = document.getElementById('pathInput');
+            if (pathInput) {
+                pathInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        navigateToPath();
+                    } else if (e.key === 'Escape') {
+                        cancelPathEdit();
+                    }
+                });
+            }
+        });
+
+        // Quick navigation functions
+        function navigateToParent() {
+            const currentPath = '<?php echo addslashes($current_dir); ?>';
+            const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+            if (parentPath && parentPath !== '<?php echo addslashes(FM_ROOT_PATH); ?>'.substring(0, '<?php echo addslashes(FM_ROOT_PATH); ?>'.lastIndexOf('/'))) {
+                window.location.href = '<?php echo FM_SELF_URL; ?>?dir=' + encodeURIComponent(parentPath);
+            }
+        }
+
+        function navigateToRoot() {
+            window.location.href = '<?php echo FM_SELF_URL; ?>?dir=' + encodeURIComponent('<?php echo addslashes(FM_ROOT_PATH); ?>');
+        }
+
+        // Root directory change function
+        function changeRoot(newRoot) {
+            if (newRoot && confirm('Change root directory to: ' + newRoot + '?')) {
+                window.location.href = '<?php echo FM_SELF_URL; ?>?set_root=' + encodeURIComponent(newRoot);
+            }
+        }
     </script>
 </body>
 </html>
